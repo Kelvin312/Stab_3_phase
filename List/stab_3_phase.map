@@ -1,0 +1,49 @@
+RAM Allocation [bytes]
+Variable                                                          Address   Size
+--------------------------------------------------------------------------------
+rx_buffer                                                         0x0160      32
+tx_buffer                                                         0x0180      32
+isRising                                                          0x01A0       4
+isFalling                                                         0x01A4       4
+adcValue                                                          0x01A8       8
+OutVoltage                                                        0x01B0       4
+flag                                                              0x01B4       1
+isEnable                                                          0x01B5       1
+timeReg                                                           0x01B6       1
+lastFalling                                                       0x01B7       1
+regCounter                                                        0x01B8       1
+phaseCounter                                                      0x01B9       1
+
+EEPROM Allocation [bytes]
+Variable                                                          Address   Size
+--------------------------------------------------------------------------------
+
+Register Allocation
+Variable                                                          Register  Size
+--------------------------------------------------------------------------------
+rx_wr_index                                                       R5           1
+rx_rd_index                                                       R4           1
+rx_counter                                                        R7           1
+rx_buffer_overflow                                                R2.0      1bit
+tx_wr_index                                                       R6           1
+tx_rd_index                                                       R9           1
+tx_counter                                                        R8           1
+adc_wr_input                                                      R11          1
+adc_rd_input                                                      R10          1
+tempValue                                                         R12,R13      2
+
+FLASH Allocation [words]
+Function                                                          Address   Size
+--------------------------------------------------------------------------------
+usart_rx_isr                                                      0x00074     28
+usart_tx_isr                                                      0x000A3     20
+putchar                                                           0x000B7     26
+SetOut                                                            0x000D1     93
+timer0_ovf_isr                                                    0x0012E      8
+timer0_comp_isr                                                   0x00136      4
+timer1_ovf_isr                                                    0x0013A      7
+timer1_compa_isr                                                  0x00141      4
+timer2_ovf_isr                                                    0x00145      8
+timer2_comp_isr                                                   0x0014D      4
+adc_isr                                                           0x00151    246
+main                                                              0x00247     98
