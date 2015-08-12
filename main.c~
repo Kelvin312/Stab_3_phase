@@ -173,7 +173,8 @@ else
 #define ADC_VREF_TYPE 0x40
 #define ZERO 10
 
-#define COUNT_CONTROL 100
+#define COUNT_CONTROL 75
+#define HYSTIREZIS 15
 
 #define AP PORTC.2
 #define AN PORTC.3
@@ -185,11 +186,12 @@ else
 #define LED1 PORTD.4  //green
 #define LED2 PORTD.6  //red
 
-#define MIN_OUT_VOLTAGE (220*COUNT_CONTROL)
-#define MAX_OUT_VOLTAGE (240*COUNT_CONTROL)
+#define MIN_OUT_VOLTAGE (230*COUNT_CONTROL)
+#define MAX_OUT_VOLTAGE (255*COUNT_CONTROL)
 
 #define MIN_TIMEREG 47    //180 grad
-#define MAX_TIMEREG 178   //30 grad
+#define MAX_TIMEREG 180   //30 grad
+
 
 char adc_wr_input=0, adc_rd_input=0;
 char isRising[4], isFalling[4]; 
@@ -199,6 +201,7 @@ char flag, isEnable = 1;
 unsigned char timeReg = MIN_TIMEREG, lastFalling = 0;
 char regCounter = 0;
 char phaseCounter = 0;
+char old_test = 0;
 
 inline void SetOut(char numb)
 {
@@ -291,17 +294,17 @@ interrupt [ADC_INT] void adc_isr(void)
 tempValue = ADCW;
 
 // Select next ADC input
-    adc_rd_input = adc_wr_input + 2;
+    adc_rd_input = adc_wr_input + 1;
     if(adc_rd_input > 3) adc_rd_input -= 4;
     ADMUX=(ADC_VREF_TYPE & 0xff) | adc_rd_input;
 
 
-if(adc_wr_input<3)
+if(adc_wr_input<3) //Фазы
 { 
 tempValue -= 0x01FF;
 adcValue[adc_wr_input] = tempValue;
 
-if(tempValue > (ZERO+50) && isRising[adc_wr_input] == 0)
+if(tempValue > (ZERO+HYSTIREZIS) && isRising[adc_wr_input] == 0)
 {
     isRising[adc_wr_input] = 1;
     phaseCounter++;
@@ -311,60 +314,65 @@ if(tempValue > (ZERO+50) && isRising[adc_wr_input] == 0)
     switch(adc_wr_input)
     {
         case 0:
-            if((TCCR0&7) != 0) putchar(0xA1);
+            if((TCCR0&7) == 0) 
             {
               TCNT0=timeReg; //Время включения 1
-              TCCR0=0x05;
+              TCCR0=0x05;  //putchar(0xB1);
             }
         break;
         case 1:
-            if((TCCR1B&7) != 0) putchar(0xA2);
+            if((TCCR1B&7) == 0) 
             {
               TCNT1H=0xFF;
               TCNT1L=timeReg; //Время включения 2
-              TCCR1B=0x05;
+              TCCR1B=0x05;  //putchar(0xB2);
             }   
         break;
         case 2:
-            if((TCCR2&7) != 0) putchar(0xA3);
+            if((TCCR2&7) == 0)
             {
               TCNT2=timeReg; //Время включения 3
-              TCCR2=0x07;
+              TCCR2=0x07;   //putchar(0xB3);
             }
         break;
     }
     }
 }
 
-if(tempValue < (ZERO-200))
+if(tempValue < (ZERO-HYSTIREZIS))
 {
     isRising[adc_wr_input] = 0;
 }
 
-if(tempValue < (ZERO-10) && isFalling[adc_wr_input] == 0)
+if(tempValue < (ZERO-HYSTIREZIS) && isFalling[adc_wr_input] == 0)
 {
     isFalling[adc_wr_input] = 1;
     lastFalling = adc_wr_input; 
     phaseCounter++;
 }
 
-if(tempValue > (ZERO+200))
+if(tempValue > (ZERO+HYSTIREZIS))
 {
     isFalling[adc_wr_input] = 0;
 }
 }
-else
+else //Выход
 {
     OutVoltage += tempValue - 255;
 
     if(++regCounter >= COUNT_CONTROL)
     {
-        isEnable = (phaseCounter > 5);
-        if(isEnable){LED1 = 0; LED2 = 0;} else {LED1 = 1; LED2 = 1; timeReg = MIN_TIMEREG+1; }
+        isEnable = (phaseCounter > 4) && (phaseCounter < 11); //Защита от частоты сети
+        if(OutVoltage < 40 && timeReg > (MIN_TIMEREG + 26)) isEnable = 0; //Защита от мин тока удержания
+        
+        if(isEnable){LED1 = 0; LED2 = 0;} else {LED1 = 1; LED2 = 1; timeReg = MIN_TIMEREG; }
         
         if(OutVoltage < MIN_OUT_VOLTAGE){ if(timeReg < MAX_TIMEREG) timeReg++; LED1 = 1;}  //LED2 on Volt+
         if(OutVoltage > MAX_OUT_VOLTAGE){ if(timeReg > MIN_TIMEREG) timeReg--; LED2 = 1;}  //Для 50 герц
-         //putchar(timeReg);
+        if(OutVoltage > (MAX_OUT_VOLTAGE+30) && timeReg > (MIN_TIMEREG+3)) timeReg-=3;
+         if(timeReg != old_test) putchar(timeReg); 
+         old_test = timeReg;
+         if(phaseCounter>7) putchar(phaseCounter);
         regCounter = 0;
         OutVoltage = 0;
         phaseCounter = 0;
@@ -504,10 +512,10 @@ SPCR=0x00;
 TWCR=0x00;
 
 // Watchdog Timer initialization
-// Watchdog Timer Prescaler: OSC/2048k
+// Watchdog Timer Prescaler: OSC/512k
 #pragma optsize-
-WDTCR=0x1F;
-WDTCR=0x0F;
+WDTCR=0x1D;
+WDTCR=0x0D;
 #ifdef _OPTIMIZE_SIZE_
 #pragma optsize+
 #endif
@@ -515,6 +523,7 @@ WDTCR=0x0F;
 // Global enable interrupts
 #asm("sei")
 
+putchar(0xCC);
 while (1)
       {
       #asm("wdr")
