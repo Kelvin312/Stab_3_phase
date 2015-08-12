@@ -10,9 +10,9 @@ OutVoltage                                                        0x01B0       4
 flag                                                              0x01B4       1
 isEnable                                                          0x01B5       1
 timeReg                                                           0x01B6       1
-lastFalling                                                       0x01B7       1
-regCounter                                                        0x01B8       1
-phaseCounter                                                      0x01B9       1
+regCounter                                                        0x01B7       1
+phaseCounter                                                      0x01B8       1
+old_test                                                          0x01B9       1
 
 EEPROM Allocation
 Variable                                                          Address   Size

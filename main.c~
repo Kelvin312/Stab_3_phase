@@ -185,12 +185,15 @@ else
 
 #define LED1 PORTD.4  //green
 #define LED2 PORTD.6  //red
+#define INTA PIND.2
+#define INTB PIND.3
+#define INTC PINB.2
 
 #define MIN_OUT_VOLTAGE (230*COUNT_CONTROL)
 #define MAX_OUT_VOLTAGE (255*COUNT_CONTROL)
 
-#define MIN_TIMEREG 47    //180 grad
-#define MAX_TIMEREG 180   //30 grad
+#define MIN_TIMEREG 47   //48  //180 grad
+#define MAX_TIMEREG 180  //178 //30 grad
 
 
 char adc_wr_input=0, adc_rd_input=0;
@@ -198,7 +201,7 @@ char isRising[4], isFalling[4];
 signed int adcValue[LAST_ADC_INPUT-FIRST_ADC_INPUT+1], tempValue;
 long OutVoltage = 0;
 char flag, isEnable = 1;
-unsigned char timeReg = MIN_TIMEREG, lastFalling = 0;
+unsigned char timeReg = MIN_TIMEREG;
 char regCounter = 0;
 char phaseCounter = 0;
 char old_test = 0;
@@ -283,7 +286,39 @@ interrupt [TIM2_COMP] void timer2_comp_isr(void)
 SetOut(2);
 }
 
+// External Interrupt 0 service routine
+interrupt [EXT_INT0] void ext_int0_isr(void)
+{
+            if(INTA && (TCCR0&7) == 0) 
+            {
+              TCNT0=timeReg; //Время включения 1
+              TCCR0=0x05;  //putchar(0xB1);
+            }
+            phaseCounter++;
+}
 
+// External Interrupt 1 service routine
+interrupt [EXT_INT1] void ext_int1_isr(void)
+{
+            if(INTB && (TCCR1B&7) == 0) 
+            {
+              TCNT1H=0xFF;
+              TCNT1L=timeReg; //Время включения 2
+              TCCR1B=0x05;  //putchar(0xB2);
+            } 
+            phaseCounter++;
+}
+
+// External Interrupt 2 service routine
+interrupt [EXT_INT2] void ext_int2_isr(void)
+{
+            if(INTC && (TCCR2&7) == 0)
+            {
+              TCNT2=timeReg; //Время включения 3
+              TCCR2=0x07;   //putchar(0xB3);
+            }
+            phaseCounter++;
+}
 
 // ADC interrupt service routine
 // with auto input scanning
@@ -303,58 +338,6 @@ if(adc_wr_input<3) //Фазы
 { 
 tempValue -= 0x01FF;
 adcValue[adc_wr_input] = tempValue;
-
-if(tempValue > (ZERO+HYSTIREZIS) && isRising[adc_wr_input] == 0)
-{
-    isRising[adc_wr_input] = 1;
-    phaseCounter++;
-    
-    if(isEnable)
-    { 
-    switch(adc_wr_input)
-    {
-        case 0:
-            if((TCCR0&7) == 0) 
-            {
-              TCNT0=timeReg; //Время включения 1
-              TCCR0=0x05;  //putchar(0xB1);
-            }
-        break;
-        case 1:
-            if((TCCR1B&7) == 0) 
-            {
-              TCNT1H=0xFF;
-              TCNT1L=timeReg; //Время включения 2
-              TCCR1B=0x05;  //putchar(0xB2);
-            }   
-        break;
-        case 2:
-            if((TCCR2&7) == 0)
-            {
-              TCNT2=timeReg; //Время включения 3
-              TCCR2=0x07;   //putchar(0xB3);
-            }
-        break;
-    }
-    }
-}
-
-if(tempValue < (ZERO-HYSTIREZIS))
-{
-    isRising[adc_wr_input] = 0;
-}
-
-if(tempValue < (ZERO-HYSTIREZIS) && isFalling[adc_wr_input] == 0)
-{
-    isFalling[adc_wr_input] = 1;
-    lastFalling = adc_wr_input; 
-    phaseCounter++;
-}
-
-if(tempValue > (ZERO+HYSTIREZIS))
-{
-    isFalling[adc_wr_input] = 0;
-}
 }
 else //Выход
 {
@@ -362,7 +345,7 @@ else //Выход
 
     if(++regCounter >= COUNT_CONTROL)
     {
-        isEnable = (phaseCounter > 4) && (phaseCounter < 11); //Защита от частоты сети
+        isEnable = (phaseCounter > 1) && (phaseCounter < 11); //Защита от частоты сети
         if(OutVoltage < 40 && timeReg > (MIN_TIMEREG + 26)) isEnable = 0; //Защита от мин тока удержания
         
         if(isEnable){LED1 = 0; LED2 = 0;} else {LED1 = 1; LED2 = 1; timeReg = MIN_TIMEREG; }
@@ -372,7 +355,7 @@ else //Выход
         if(OutVoltage > (MAX_OUT_VOLTAGE+30) && timeReg > (MIN_TIMEREG+3)) timeReg-=3;
          if(timeReg != old_test) putchar(timeReg); 
          old_test = timeReg;
-         if(phaseCounter>7) putchar(phaseCounter);
+         if(phaseCounter!=3) putchar(phaseCounter);
         regCounter = 0;
         OutVoltage = 0;
         phaseCounter = 0;
@@ -468,11 +451,16 @@ TCNT2=0x4A;
 OCR2=0xCC;
 
 // External Interrupt(s) initialization
-// INT0: Off
-// INT1: Off
-// INT2: Off
-MCUCR=0x00;
-MCUCSR=0x00;
+// INT0: On
+// INT0 Mode: Rising Edge
+// INT1: On
+// INT1 Mode: Rising Edge
+// INT2: On
+// INT2 Mode: Rising Edge
+GICR|=0xE0;
+MCUCR=0x0F;
+MCUCSR=0x40;
+GIFR=0xE0;
 
 // Timer(s)/Counter(s) Interrupt(s) initialization
 TIMSK=0xD7;
@@ -526,6 +514,38 @@ WDTCR=0x0D;
 putchar(0xCC);
 while (1)
       {
+          if(INTA)
+          {
+              isRising[0] = 1;
+              isFalling[0] = 0;
+          } 
+          else
+          {
+              isRising[0] = 0;
+              isFalling[0] = 1;          
+          }  
+          if(INTB)
+          {
+              isRising[1] = 1;
+              isFalling[1] = 0;
+          } 
+          else
+          {
+              isRising[1] = 0;
+              isFalling[1] = 1;          
+          }
+          if(INTC)
+          {
+              isRising[2] = 1;
+              isFalling[2] = 0;
+          } 
+          else
+          {
+              isRising[2] = 0;
+              isFalling[2] = 1;          
+          }
+
+      
       #asm("wdr")
       if(flag && rx_counter)
       { 
