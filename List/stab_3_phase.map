@@ -10,10 +10,9 @@ OutVoltage                                                        0x01B0       4
 flag                                                              0x01B4       1
 isEnable                                                          0x01B5       1
 timeReg                                                           0x01B6       1
-lastFalling                                                       0x01B7       1
-regCounter                                                        0x01B8       1
-phaseCounter                                                      0x01B9       1
-old_test                                                          0x01BA       1
+regCounter                                                        0x01B7       1
+phaseCounter                                                      0x01B8       1
+old_test                                                          0x01B9       1
 
 EEPROM Allocation [bytes]
 Variable                                                          Address   Size
@@ -46,5 +45,8 @@ timer1_ovf_isr                                                    0x0013A      7
 timer1_compa_isr                                                  0x00141      4
 timer2_ovf_isr                                                    0x00145      8
 timer2_comp_isr                                                   0x0014D      4
-adc_isr                                                           0x00151    288
-main                                                              0x00271     97
+ext_int0_isr                                                      0x00151     16
+ext_int1_isr                                                      0x00161     18
+ext_int2_isr                                                      0x00173     19
+adc_isr                                                           0x00186    214
+main                                                              0x0025C    142

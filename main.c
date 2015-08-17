@@ -292,9 +292,10 @@ interrupt [EXT_INT0] void ext_int0_isr(void)
             if(INTA && (TCCR0&7) == 0) 
             {
               TCNT0=timeReg; //Время включения 1
-              TCCR0=0x05;  //putchar(0xB1);
+              TCCR0=0x05;  //putchar(0xB1); 
+              phaseCounter++;
             }
-            phaseCounter++;
+            
 }
 
 // External Interrupt 1 service routine
@@ -305,8 +306,9 @@ interrupt [EXT_INT1] void ext_int1_isr(void)
               TCNT1H=0xFF;
               TCNT1L=timeReg; //Время включения 2
               TCCR1B=0x05;  //putchar(0xB2);
+              phaseCounter++;
             } 
-            phaseCounter++;
+            
 }
 
 // External Interrupt 2 service routine
@@ -315,9 +317,10 @@ interrupt [EXT_INT2] void ext_int2_isr(void)
             if(INTC && (TCCR2&7) == 0)
             {
               TCNT2=timeReg; //Время включения 3
-              TCCR2=0x07;   //putchar(0xB3);
+              TCCR2=0x07;   //putchar(0xB3); 
+              phaseCounter++;
             }
-            phaseCounter++;
+            
 }
 
 // ADC interrupt service routine
@@ -345,7 +348,7 @@ else //Выход
 
     if(++regCounter >= COUNT_CONTROL)
     {
-        isEnable = (phaseCounter > 1) && (phaseCounter < 11); //Защита от частоты сети
+        isEnable = (phaseCounter > 2) && (phaseCounter < 6); //Защита от частоты сети
         if(OutVoltage < 40 && timeReg > (MIN_TIMEREG + 26)) isEnable = 0; //Защита от мин тока удержания
         
         if(isEnable){LED1 = 0; LED2 = 0;} else {LED1 = 1; LED2 = 1; timeReg = MIN_TIMEREG; }
@@ -355,7 +358,7 @@ else //Выход
         if(OutVoltage > (MAX_OUT_VOLTAGE+30) && timeReg > (MIN_TIMEREG+3)) timeReg-=3;
          if(timeReg != old_test) putchar(timeReg); 
          old_test = timeReg;
-         if(phaseCounter != 3) putchar(phaseCounter);
+         if(phaseCounter != 3 && phaseCounter != 4) putchar(phaseCounter);
         regCounter = 0;
         OutVoltage = 0;
         phaseCounter = 0;
