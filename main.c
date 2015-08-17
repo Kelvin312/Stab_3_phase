@@ -208,6 +208,9 @@ char old_test = 0;
 
 inline void SetOut(char numb)
 {
+  GICR|=0xE0; //Вкл
+  GIFR=0xE0;  //Сброс флаг
+  
   if(isEnable && isRising[numb] && timeReg > MIN_TIMEREG)
   {
       switch(numb) 
@@ -293,7 +296,8 @@ interrupt [EXT_INT0] void ext_int0_isr(void)
             {
               TCNT0=timeReg; //Время включения 1
               TCCR0=0x05;  //putchar(0xB1); 
-              phaseCounter++;
+              phaseCounter++; 
+              GICR &= 0x1F | 0b10100000; //Выкл
             }
             
 }
@@ -306,7 +310,8 @@ interrupt [EXT_INT1] void ext_int1_isr(void)
               TCNT1H=0xFF;
               TCNT1L=timeReg; //Время включения 2
               TCCR1B=0x05;  //putchar(0xB2);
-              phaseCounter++;
+              phaseCounter++;  
+              GICR &= 0x1F | 0b01100000; //Выкл
             } 
             
 }
@@ -318,7 +323,8 @@ interrupt [EXT_INT2] void ext_int2_isr(void)
             {
               TCNT2=timeReg; //Время включения 3
               TCCR2=0x07;   //putchar(0xB3); 
-              phaseCounter++;
+              phaseCounter++; 
+              GICR &= 0x1F | 0b11000000; //Выкл
             }
             
 }
